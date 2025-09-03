@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Calculadora IEEE754</title>
+  <style>
+    body {
+      background-color: #1e1e2f;
+      color: #ffffff;
+      font-family: Arial, sans-serif;
+      text-align: center;
+      padding: 20px;
+    }
+    input, button {
+      margin: 10px;
+      padding: 10px;
+      font-size: 14px;
+    }
+    .resultado {
+      background-color: #2c2f4a;
+      padding: 10px;
+      margin: 10px auto;
+      width: 80%;
+      border-radius: 5px;
+    }
+    .resultado input {
+      width: 60%;
+    }
+  </style>
+</head>
+<body>
+  <h1>🧮 conversion de decimal a binario a coma flotante IEEE754 de 32 bits</h1>
+
+  <!-- 🔢 Decimal → IEEE754 -->
+  <h2>🔢 Decimal → IEEE754</h2>
+  <input type="number" id="decimalInput" placeholder="Ingresa número decimal">
+  <button onclick="convertirDecimal()">Convertir</button>
+
+  <div class="resultado">
+    <p>Binario: <input id="binario" readonly></p>
+    <p>Notación científica: <input id="cientifica" readonly></p>
+    <p>Signo: <input id="signo" readonly></p>
+    <p>Exponente: <input id="exponente" readonly></p>
+    <p>Mantisa : <input id="mantisa" readonly></p>
+  </div>
+
+  <!-- 💾 IEEE754 → Decimal -->
+  <h2>💾 IEEE754 → Decimal</h2>
+  <input type="text" id="ieeeSignoInput" placeholder="Signo (0 o 1)" maxlength="1">
+  <input type="text" id="ieeeExpInput" placeholder="Exponente (8 bits)" maxlength="8">
+  <input type="text" id="ieeeMantisaInput" placeholder="Mantisa (23 bits)" maxlength="23">
+  <button onclick="convertirIEEE()">Convertir</button>
+
+  <div class="resultado">
+    <p>Decimal: <input id="ieeeDecimal" readonly></p>
+  </div>
+
+  <script>
+    // 🧼 Solo permitir 0 y 1 en campos binarios
+    function soloBits(inputId) {
+      const campo = document.getElementById(inputId);
+      campo.addEventListener("input", () => {
+        campo.value = campo.value.replace(/[^01]/g, "");
+      });
+    }
+
+    soloBits("ieeeSignoInput");
+    soloBits("ieeeExpInput");
+    soloBits("ieeeMantisaInput");
+
+    function decimalABinario(numero) {
+      let parte_entera = Math.floor(numero);
+      let parte_decimal = Math.abs(numero - parte_entera);
+      let bin_entera = parte_entera.toString(2);
+      let bin_decimal = '';
+      let contador = 0;
+      while (parte_decimal !== 0 && contador < 23) {
+        parte_decimal *= 2;
+        let bit = Math.floor(parte_decimal);
+        bin_decimal += bit;
+        parte_decimal -= bit;
+        contador++;
+      }
+      return bin_decimal ? `${bin_entera}.${bin_decimal}` : bin_entera;
+    }
+
+    function binarioACientifica(binario) {
+      let [entera, decimal = ''] = binario.split('.');
+      let completo = entera + decimal;
+      let primer1 = completo.indexOf('1');
+      if (primer1 === -1) return ["0", 0];
+      let mantisa = completo.slice(primer1 + 1);
+      let exponente = entera.length - primer1 - 1;
+      return [`1.${mantisa}`, exponente];
+    }
+
+    function cientificaAIEEE(numero, mantisa, exponente) {
+      let signo = numero >= 0 ? '0' : '1';
+      let sesgo = 127;
+      let exp_bin = (exponente + sesgo).toString(2).padStart(8, '0');
+      let mantisa_bin = mantisa.padEnd(23, '0').slice(0, 23);
+      return [signo, exp_bin, mantisa_bin];
+    }
+
+    function convertirDecimal() {
+      let num = parseFloat(document.getElementById("decimalInput").value);
+      let bin = decimalABinario(num);
+      let [mantisa, exp] = binarioACientifica(bin);
+      let [signo, exp_bin, mantisa_bin] = cientificaAIEEE(num, mantisa.split('.')[1], exp);
+      document.getElementById("binario").value = bin;
+      document.getElementById("cientifica").value = `${mantisa} × 2^${exp}`;
+      document.getElementById("signo").value = signo;
+      document.getElementById("exponente").value = exp_bin;
+      document.getElementById("mantisa").value = mantisa_bin;
+    }
+
+    function reconstruirIEEE(signo, exp_bin, mantisa_bin) {
+      let exp = parseInt(exp_bin, 2) - 127;
+      let mantisa = 1.0;
+      for (let i = 0; i < mantisa_bin.length; i++) {
+        if (mantisa_bin[i] === '1') mantisa += Math.pow(2, -(i + 1));
+      }
+      let resultado = mantisa * Math.pow(2, exp);
+      if (signo === '1') resultado *= -1;
+      return resultado.toFixed(10);
+    }
+
+    function convertirIEEE() {
+      let signo = document.getElementById("ieeeSignoInput").value.trim();
+      let exp_bin = document.getElementById("ieeeExpInput").value.trim();
+      let mantisa_bin = document.getElementById("ieeeMantisaInput").value.trim();
+
+      const esBinarioValido = /^[01]{23}$/.test(mantisa_bin);
+      const esExponenteValido = /^[01]{8}$/.test(exp_bin);
+
+      if (signo !== '0' && signo !== '1' || !esExponenteValido || !esBinarioValido) {
+        alert("Por favor ingresa valores válidos:\n- Signo: 0 o 1\n- Exponente: 8 bits binarios\n- Mantisa: exactamente 23 bits binarios.");
+        return;
+      }
+
+      let resultado = reconstruirIEEE(signo, exp_bin, mantisa_bin);
+      document.getElementById("ieeeDecimal").value = resultado;
+    }
+  </script>
+</body>
+</html>
